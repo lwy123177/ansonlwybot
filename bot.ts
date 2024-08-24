@@ -1,8 +1,20 @@
 import { config } from "dotenv";
+import express from "express";
+import TelegramBot from "node-telegram-bot-api";
 
 config();
 
-import TelegramBot from "node-telegram-bot-api";
+// Create an instance of the Express application
+const app = express();
+
+app.get("/", (req, res) => {
+  res.send("Hello, World!");
+});
+
+// Listen on port 80
+app.listen(80, () => {
+  console.log("HTTP server is listening on port 80");
+});
 
 // Retrieve the token from the environment variables
 const token = process.env.TELEGRAM_BOT_TOKEN;

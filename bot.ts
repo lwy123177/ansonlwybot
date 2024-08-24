@@ -1,6 +1,17 @@
+import { config } from "dotenv";
+
+config();
+
 import TelegramBot from "node-telegram-bot-api";
 
-const token = "7434441265:AAGPENDvxIINUbJDeUjC2OUB6oIjhWqcf5M";
+// Retrieve the token from the environment variables
+const token = process.env.TELEGRAM_BOT_TOKEN;
+
+if (!token) {
+  throw new Error(
+    "TELEGRAM_BOT_TOKEN is not defined in the environment variables"
+  );
+}
 
 // Create a bot that uses 'polling' to fetch new updates
 const bot = new TelegramBot(token, { polling: true });

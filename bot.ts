@@ -16,6 +16,8 @@ if (!token) {
 // Create a bot that uses 'polling' to fetch new updates
 const bot = new TelegramBot(token, { polling: true });
 
+console.log("bot starts listening", bot);
+
 // Listen for any kind of message. There are different kinds of messages.
 bot.on("message", (msg) => {
   const chatId = msg.chat.id;

@@ -1,6 +1,15 @@
 import { config } from "dotenv";
 import express from "express";
 import TelegramBot from "node-telegram-bot-api";
+import { join } from "path";
+import youtubeDl from "youtube-dl-exec";
+import createLogger = require("progress-estimator");
+
+// All configuration keys are optional, but it's recommended to specify a storage location.
+// Learn more about configuration options below.
+const logger = createLogger({
+  storagePath: join(__dirname, ".progress-estimator"),
+});
 
 config();
 
@@ -20,7 +29,7 @@ const youtubeParser = (url: string) => {
   var regExp =
     /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
   var match = url.match(regExp);
-  return match && match[7].length == 11 ? match[7] : "URL invalid";
+  return match && match[7].length == 11 ? match[7] : null;
 };
 
 console.log("bot starts listening", bot);
@@ -32,7 +41,18 @@ bot.on("message", (msg) => {
 
   // Send back the same message to the user
   if (text) {
-    bot.sendMessage(chatId, youtubeParser(text));
+    const id = youtubeParser(text);
+    if (!id) {
+      bot.sendMessage(chatId, "URL Invalid");
+    } else {
+      const url = `https://www.youtube.com/watch?v=${id}`;
+      const promise = youtubeDl(url, { dumpSingleJson: true }).then((x) => {
+        console.log("Download Completed");
+        console.log(x);
+      });
+      const result = logger(promise, `Obtaining ${url}`);
+      console.log(result);
+    }
   }
 });
 

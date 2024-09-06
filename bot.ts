@@ -51,10 +51,12 @@ bot.on("message", (msg) => {
         dumpSingleJson: true,
         format: M4A_FORMAT_CODE,
       }).then((x) => {
+        bot.sendMessage(chatId, "Download Completed");
         console.log("Download Completed");
         console.log(x);
       });
       const result = logger(promise, `Obtaining ${url}`);
+      bot.sendMessage(chatId, "Download Begin");
       console.log(result);
     }
   }

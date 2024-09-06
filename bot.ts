@@ -15,6 +15,7 @@ config();
 
 // Retrieve the token from the environment variables
 const token = process.env.TELEGRAM_BOT_TOKEN;
+const M4A_FORMAT_CODE = "140";
 
 if (!token) {
   throw new Error(
@@ -46,7 +47,10 @@ bot.on("message", (msg) => {
       bot.sendMessage(chatId, "URL Invalid");
     } else {
       const url = `https://www.youtube.com/watch?v=${id}`;
-      const promise = youtubeDl(url, { dumpSingleJson: true }).then((x) => {
+      const promise = youtubeDl(url, {
+        dumpSingleJson: true,
+        format: M4A_FORMAT_CODE,
+      }).then((x) => {
         console.log("Download Completed");
         console.log(x);
       });

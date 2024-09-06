@@ -16,6 +16,13 @@ if (!token) {
 // Create a bot that uses 'polling' to fetch new updates
 const bot = new TelegramBot(token, { polling: true });
 
+const youtubeParser = (url: string) => {
+  var regExp =
+    /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+  var match = url.match(regExp);
+  return match && match[7].length == 11 ? match[7] : "URL invalid";
+};
+
 console.log("bot starts listening", bot);
 
 // Listen for any kind of message. There are different kinds of messages.
@@ -25,7 +32,7 @@ bot.on("message", (msg) => {
 
   // Send back the same message to the user
   if (text) {
-    bot.sendMessage(chatId, text);
+    bot.sendMessage(chatId, youtubeParser(text));
   }
 });
 

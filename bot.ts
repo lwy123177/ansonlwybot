@@ -89,7 +89,7 @@ bot.on("message", async (msg) => {
         format: M4A_FORMAT_CODE,
       })
         .then((payload) => {
-          const fileName = `${payload.title}.m4a`;
+          const fileName = `${payload.title.replace(/[^a-zA-Z0-9]/g, "")}.m4a`;
           const filePath = join(tmpdir(), fileName);
           const options = {
             duration: payload.duration,
@@ -118,7 +118,7 @@ bot.on("message", async (msg) => {
                   if (progress.percent) {
                     const percent = Math.min(
                       99.9,
-                      Math.max(0, Math.round(progress.percent * 10))
+                      Math.max(0, Math.round(progress.percent))
                     );
                     bot.sendMessage(chatId, `Progress: ${percent}%`);
                   }

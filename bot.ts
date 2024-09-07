@@ -1,6 +1,8 @@
 import { config } from "dotenv";
 import express from "express";
+import fs from "fs";
 import TelegramBot from "node-telegram-bot-api";
+import { tmpdir } from "os";
 import { join } from "path";
 import youtubeDl from "youtube-dl-exec";
 import createLogger = require("progress-estimator");
@@ -36,9 +38,17 @@ const youtubeParser = (url: string) => {
 console.log("bot starts listening", bot);
 
 // Listen for any kind of message. There are different kinds of messages.
-bot.on("message", (msg) => {
+bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
   const text = msg.text;
+
+  if (text === "/start") {
+    bot.sendMessage(
+      chatId,
+      "Hello! Just send the youtube url you would like to download for the audio here"
+    );
+    return;
+  }
 
   // Send back the same message to the user
   if (text) {
@@ -48,13 +58,39 @@ bot.on("message", (msg) => {
     } else {
       const url = `https://www.youtube.com/watch?v=${id}`;
       const promise = youtubeDl(url, {
-        dumpSingleJson: true,
+        dumpJson: true,
         format: M4A_FORMAT_CODE,
-      }).then((x) => {
-        bot.sendMessage(chatId, "Download Completed");
-        console.log("Download Completed");
-        console.log(x);
-      });
+      })
+        .then((payload) => {
+          const fileName = `${payload.title}.m4a`;
+          const filePath = join(tmpdir(), fileName);
+          youtubeDl(url, {
+            format: M4A_FORMAT_CODE,
+            output: filePath,
+          }).then(() => {
+            bot.sendMessage(chatId, "Download Completed" + payload.title);
+            bot
+              .sendAudio(chatId, filePath, {
+                duration: payload.duration,
+                title: payload.title,
+                thumbnail: payload.thumbnail,
+              })
+              .then(() => {
+                fs.unlinkSync(filePath); // Optionally remove the file after sending
+              })
+              .catch((error) => {
+                console.error("Error sending audio:", error);
+              });
+          });
+        })
+        .catch((error) => {
+          console.error("Error downloading audio:", error);
+          bot.sendMessage(
+            chatId,
+            "An error occurred while downloading the audio."
+          );
+        });
+
       const result = logger(promise, `Obtaining ${url}`);
       bot.sendMessage(chatId, "Download Begin");
       console.log(result);

@@ -103,7 +103,7 @@ bot.on("message", async (msg) => {
             bot.sendMessage(chatId, "Download Completed" + payload.title);
             let sendPath = filePath;
             if (startTime || endTime) {
-              const trimmedFileName = `trimmed-${new Date().getTime()}-${fileName}`;
+              const trimmedFileName = `trimmed-${fileName}`;
               const trimmedFilePath = join(tmpdir(), trimmedFileName);
               const newDuration = getDurationSeconds(
                 startTime || "0:00",

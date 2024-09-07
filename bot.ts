@@ -1,5 +1,6 @@
 import { config } from "dotenv";
 import express from "express";
+import ffmpeg from "fluent-ffmpeg";
 import fs from "fs";
 import TelegramBot from "node-telegram-bot-api";
 import { tmpdir } from "os";
@@ -28,6 +29,30 @@ if (!token) {
 // Create a bot that uses 'polling' to fetch new updates
 const bot = new TelegramBot(token, { polling: true });
 
+const parseCommand = (text: string) => {
+  const urlRegex = /(https?:\/\/[^\s]+)/;
+  const match = text.match(urlRegex);
+  const url = match ? match[0] : "";
+
+  const startRegex = /--start\s*([\d:]+)/;
+  const startMatch = text.match(startRegex);
+  const startTime = startMatch ? startMatch[1] : null;
+
+  const endRegex = /--end\s*([\d:]+)/;
+  const endMatch = text.match(endRegex);
+  const endTime = endMatch ? endMatch[1] : null;
+
+  return { url, startTime, endTime };
+};
+
+const getDurationSeconds = (startTime: string, endTime: string) => {
+  const [startMin, startSec] = startTime
+    .split(":")
+    .map((x) => Number.parseInt(x));
+  const [endMin, endSec] = endTime.split(":").map((x) => Number.parseInt(x));
+  return (endMin - startMin) * 60 + (endSec - startSec);
+};
+
 const youtubeParser = (url: string) => {
   var regExp =
     /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
@@ -45,14 +70,16 @@ bot.on("message", async (msg) => {
   if (text === "/start") {
     bot.sendMessage(
       chatId,
-      "Hello! Just send the youtube url you would like to download for the audio here"
+      "Hello! Just send the youtube url you would like to download for the audio here\n" +
+        "You can also specify start or end of the audio, e.g. https://www.youtube.com/watch?v=abcd1234 --start 0:15 --end 1:23"
     );
     return;
   }
 
   // Send back the same message to the user
   if (text) {
-    const id = youtubeParser(text);
+    const { url, startTime, endTime } = parseCommand(text);
+    const id = youtubeParser(url);
     if (!id) {
       bot.sendMessage(chatId, "URL Invalid");
     } else {
@@ -64,23 +91,66 @@ bot.on("message", async (msg) => {
         .then((payload) => {
           const fileName = `${payload.title}.m4a`;
           const filePath = join(tmpdir(), fileName);
+          const options = {
+            duration: payload.duration,
+            title: payload.title,
+            thumbnail: payload.thumbnail,
+          };
           youtubeDl(url, {
             format: M4A_FORMAT_CODE,
             output: filePath,
           }).then(() => {
             bot.sendMessage(chatId, "Download Completed" + payload.title);
-            bot
-              .sendAudio(chatId, filePath, {
-                duration: payload.duration,
-                title: payload.title,
-                thumbnail: payload.thumbnail,
-              })
-              .then(() => {
-                fs.unlinkSync(filePath); // Optionally remove the file after sending
-              })
-              .catch((error) => {
-                console.error("Error sending audio:", error);
-              });
+            let sendPath = filePath;
+            if (startTime || endTime) {
+              const trimmedFileName = `trimmed-${new Date().getTime()}-${fileName}`;
+              const trimmedFilePath = join(tmpdir(), trimmedFileName);
+              const newDuration = getDurationSeconds(
+                startTime || "0:00",
+                endTime || payload.duration_string
+              );
+              bot.sendMessage(chatId, "Trimming Begin" + payload.title);
+              ffmpeg(filePath)
+                .setStartTime(startTime || "0:00")
+                .setDuration(newDuration)
+                .save(trimmedFilePath)
+                .on("progress", function (progress) {
+                  if (progress.percent) {
+                    const percent = Math.min(
+                      99.9,
+                      Math.max(0, Math.round(progress.percent * 10))
+                    );
+                    bot.sendMessage(chatId, `Progress: ${percent}%`);
+                  }
+                })
+                .on("error", (e) => {
+                  bot.sendMessage(chatId, e.message);
+                })
+                .on("end", () => {
+                  bot.sendMessage(chatId, "Trimming Completed" + payload.title);
+                  bot
+                    .sendAudio(chatId, trimmedFilePath, {
+                      ...options,
+                      duration: newDuration,
+                    })
+                    .then(() => {
+                      fs.unlinkSync(filePath);
+                      fs.unlinkSync(trimmedFilePath);
+                    })
+                    .catch((error) => {
+                      console.error("Error sending audio:", error);
+                    });
+                });
+            } else {
+              bot
+                .sendAudio(chatId, sendPath, options)
+                .then(() => {
+                  fs.unlinkSync(filePath); // Optionally remove the file after sending
+                })
+                .catch((error) => {
+                  console.error("Error sending audio:", error);
+                });
+            }
           });
         })
         .catch((error) => {

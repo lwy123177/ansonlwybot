@@ -79,92 +79,86 @@ bot.on("message", async (msg) => {
   // Send back the same message to the user
   if (text) {
     const { url, startTime, endTime } = parseCommand(text);
-    const id = youtubeParser(url);
-    if (!id) {
-      bot.sendMessage(chatId, "URL Invalid");
-    } else {
-      const url = `https://www.youtube.com/watch?v=${id}`;
-      const promise = youtubeDl(url, {
-        dumpJson: true,
-        format: M4A_FORMAT_CODE,
-      })
-        .then((payload) => {
-          const fileName = `${payload.title.replace(/[^a-zA-Z0-9]/g, "")}.m4a`;
-          const filePath = join(tmpdir(), fileName);
-          const options = {
-            duration: payload.duration,
-            title: payload.title,
-            thumbnail: payload.thumbnail,
-          };
-          youtubeDl(url, {
-            format: M4A_FORMAT_CODE,
-            output: filePath,
-          }).then(() => {
-            bot.sendMessage(chatId, "Download Completed" + payload.title);
-            let sendPath = filePath;
-            if (startTime || endTime) {
-              const trimmedFileName = `trimmed-${fileName}`;
-              const trimmedFilePath = join(tmpdir(), trimmedFileName);
-              const newDuration = getDurationSeconds(
-                startTime || "0:00",
-                endTime || payload.duration_string
-              );
-              bot.sendMessage(chatId, "Trimming Begin" + payload.title);
-              ffmpeg(filePath)
-                .setStartTime(startTime || "0:00")
-                .setDuration(newDuration)
-                .save(trimmedFilePath)
-                .on("progress", function (progress) {
-                  if (progress.percent) {
-                    const percent = Math.min(
-                      99.9,
-                      Math.max(0, Math.round(progress.percent))
-                    );
-                    bot.sendMessage(chatId, `Progress: ${percent}%`);
-                  }
-                })
-                .on("error", (e) => {
-                  bot.sendMessage(chatId, e.message);
-                })
-                .on("end", () => {
-                  bot.sendMessage(chatId, "Trimming Completed" + payload.title);
-                  bot
-                    .sendAudio(chatId, trimmedFilePath, {
-                      ...options,
-                      duration: newDuration,
-                    })
-                    .then(() => {
-                      fs.unlinkSync(filePath);
-                      fs.unlinkSync(trimmedFilePath);
-                    })
-                    .catch((error) => {
-                      console.error("Error sending audio:", error);
-                    });
-                });
-            } else {
-              bot
-                .sendAudio(chatId, sendPath, options)
-                .then(() => {
-                  fs.unlinkSync(filePath); // Optionally remove the file after sending
-                })
-                .catch((error) => {
-                  console.error("Error sending audio:", error);
-                });
-            }
-          });
-        })
-        .catch((error) => {
-          console.error("Error downloading audio:", error);
-          bot.sendMessage(
-            chatId,
-            "An error occurred while downloading the audio."
-          );
+    const promise = youtubeDl(url, {
+      dumpJson: true,
+      format: M4A_FORMAT_CODE,
+    })
+      .then((payload) => {
+        const fileName = `${payload.title.replace(/[^a-zA-Z0-9]/g, "")}.m4a`;
+        const filePath = join(tmpdir(), fileName);
+        const options = {
+          duration: payload.duration,
+          title: payload.title,
+          thumbnail: payload.thumbnail,
+        };
+        youtubeDl(url, {
+          format: M4A_FORMAT_CODE,
+          output: filePath,
+        }).then(() => {
+          bot.sendMessage(chatId, "Download Completed" + payload.title);
+          let sendPath = filePath;
+          if (startTime || endTime) {
+            const trimmedFileName = `trimmed-${fileName}`;
+            const trimmedFilePath = join(tmpdir(), trimmedFileName);
+            const newDuration = getDurationSeconds(
+              startTime || "0:00",
+              endTime || payload.duration_string
+            );
+            bot.sendMessage(chatId, "Trimming Begin" + payload.title);
+            ffmpeg(filePath)
+              .setStartTime(startTime || "0:00")
+              .setDuration(newDuration)
+              .save(trimmedFilePath)
+              .on("progress", function (progress) {
+                if (progress.percent) {
+                  const percent = Math.min(
+                    99.9,
+                    Math.max(0, Math.round(progress.percent))
+                  );
+                  bot.sendMessage(chatId, `Progress: ${percent}%`);
+                }
+              })
+              .on("error", (e) => {
+                bot.sendMessage(chatId, e.message);
+              })
+              .on("end", () => {
+                bot.sendMessage(chatId, "Trimming Completed" + payload.title);
+                bot
+                  .sendAudio(chatId, trimmedFilePath, {
+                    ...options,
+                    duration: newDuration,
+                  })
+                  .then(() => {
+                    fs.unlinkSync(filePath);
+                    fs.unlinkSync(trimmedFilePath);
+                  })
+                  .catch((error) => {
+                    console.error("Error sending audio:", error);
+                  });
+              });
+          } else {
+            bot
+              .sendAudio(chatId, sendPath, options)
+              .then(() => {
+                fs.unlinkSync(filePath); // Optionally remove the file after sending
+              })
+              .catch((error) => {
+                console.error("Error sending audio:", error);
+              });
+          }
         });
+      })
+      .catch((error) => {
+        console.error("Error downloading audio:", error);
+        bot.sendMessage(
+          chatId,
+          "An error occurred while downloading the audio."
+        );
+      });
 
-      const result = logger(promise, `Obtaining ${url}`);
-      bot.sendMessage(chatId, "Download Begin");
-      console.log(result);
-    }
+    const result = logger(promise, `Obtaining ${url}`);
+    bot.sendMessage(chatId, "Download Begin");
+    console.log(result);
   }
 });
 

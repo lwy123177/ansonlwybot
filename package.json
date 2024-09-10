@@ -2,10 +2,10 @@
   "name": "telegrambot",
   "version": "1.0.0",
   "description": "",
-  "main": "bot.js",
+  "main": "index.js",
   "scripts": {
     "build": "tsc",
-    "start": "tsc | node bot.js",
+    "start": "tsc | node index.js",
     "test": "echo \"Error: no test specified\""
   },
   "keywords": [],
